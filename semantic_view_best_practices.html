@@ -385,9 +385,37 @@
 
   <div class="card">
     <h3>What Is the <code>semantic-view</code> Skill?</h3>
-    <p>The <code>semantic-view</code> skill is a <strong>bundled skill inside the Cortex Code CLI</strong> (the Snowflake fork of Claude Code). It is the single entry point for all semantic view operations &mdash; creation, optimization, auditing, debugging, VQR generation, and more. Every best practice described in this guide is implemented as a workflow inside this skill.</p>
+    <p>The <code>semantic-view</code> skill is a <strong>bundled skill available in both Cortex Code environments</strong>:</p>
+    <ul>
+      <li><strong>Cortex Code in Snowsight</strong> &mdash; AI assistant integrated directly into the Snowflake web UI</li>
+      <li><strong>Cortex Code CLI</strong> &mdash; Command-line AI assistant for local development workflows</li>
+    </ul>
+    <p>It is the single entry point for all semantic view operations &mdash; creation, optimization, auditing, debugging, VQR generation, and more. Every best practice described in this guide is implemented as a workflow inside this skill.</p>
     <div class="info-box">
       <strong>You do not need to install anything.</strong> The skill ships with Cortex Code and is automatically invoked when you mention semantic views in your prompt.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Getting Started with Cortex Code</h3>
+    <div class="grid-2">
+      <div>
+        <h4 style="color: var(--sf-blue); font-size: 15px; margin-bottom: 8px;">📱 Cortex Code in Snowsight</h4>
+        <p style="font-size: 14px; margin-bottom: 12px;">Use Cortex Code directly in your browser within Snowflake's web UI. No installation required.</p>
+        <p style="font-size: 13px;">
+          <strong>📚 Documentation:</strong><br>
+          <a href="https://docs.snowflake.com/en/user-guide/ui-snowsight-cortex-code" target="_blank" style="color: var(--sf-blue);">Snowflake Docs - Cortex Code in Snowsight</a>
+        </p>
+      </div>
+      <div>
+        <h4 style="color: var(--sf-blue); font-size: 15px; margin-bottom: 8px;">💻 Cortex Code CLI</h4>
+        <p style="font-size: 14px; margin-bottom: 12px;">Install the command-line version for terminal-based workflows and local development.</p>
+        <p style="font-size: 13px;">
+          <strong>📚 Documentation:</strong><br>
+          <a href="https://docs.snowflake.com/en/developer-guide/cortex-code/overview" target="_blank" style="color: var(--sf-blue);">Snowflake Docs - Cortex Code CLI Overview</a><br>
+          <a href="https://docs.snowflake.com/en/developer-guide/cortex-code/installation" target="_blank" style="color: var(--sf-blue);">Installation Guide</a>
+        </p>
+      </div>
     </div>
   </div>
 
@@ -395,7 +423,7 @@
     <h3>How to Invoke the Skill</h3>
     <p>Simply describe what you want in natural language. The skill triggers automatically on keywords like <em>create</em>, <em>optimize</em>, <em>debug</em>, <em>audit</em>, <em>improve</em>, <em>suggest VQRs</em>, <em>suggest metrics</em>, or <em>import Tableau</em>.</p>
 
-    <span class="code-label">Example prompts in Cortex Code CLI</span>
+    <span class="code-label">Example prompts (works in both Snowsight and CLI)</span>
     <pre><span class="hl-comment"># Create a new semantic view</span>
 <span class="hl-str">"Create a semantic view for our sales tables in ANALYTICS_DB.SEMANTIC_MODELS"</span>
 
