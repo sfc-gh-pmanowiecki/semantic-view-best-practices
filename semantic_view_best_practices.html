@@ -44,12 +44,12 @@
     border-bottom: 2px solid var(--sf-blue);
   }
   .logo {
-    width: 32px; height: 32px; background: var(--sf-blue); border-radius: 8px;
+    width: 80px; height: 32px;
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; padding: 5px;
+    flex-shrink: 0;
   }
-  .logo svg {
-    width: 100%; height: 100%; fill: white;
+  .logo img {
+    width: 100%; height: 100%; object-fit: contain;
   }
   header h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
   header span.sub { color: var(--sf-blue); font-size: 13px; margin-left: 6px; font-weight: 400; }
@@ -268,31 +268,7 @@
 <!-- Header -->
 <header>
   <div class="logo">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <!-- Simplified 6-pointed snowflake icon -->
-      <g fill="white">
-        <!-- Center hexagon -->
-        <circle cx="12" cy="12" r="2"/>
-        <!-- 6 main branches -->
-        <rect x="11" y="2" width="2" height="8" rx="0.5"/>
-        <rect x="11" y="14" width="2" height="8" rx="0.5"/>
-        <rect x="2" y="11" width="8" height="2" rx="0.5"/>
-        <rect x="14" y="11" width="8" height="2" rx="0.5"/>
-        <rect x="5.5" y="5.5" width="2" height="6" rx="0.5" transform="rotate(45 6.5 8.5)"/>
-        <rect x="16.5" y="16.5" width="2" height="6" rx="0.5" transform="rotate(45 17.5 19.5)"/>
-        <rect x="16.5" y="5.5" width="2" height="6" rx="0.5" transform="rotate(-45 17.5 8.5)"/>
-        <rect x="5.5" y="16.5" width="2" height="6" rx="0.5" transform="rotate(-45 6.5 19.5)"/>
-        <!-- End decorations -->
-        <circle cx="12" cy="3" r="1.5"/>
-        <circle cx="12" cy="21" r="1.5"/>
-        <circle cx="3" cy="12" r="1.5"/>
-        <circle cx="21" cy="12" r="1.5"/>
-        <circle cx="5.5" cy="5.5" r="1.5"/>
-        <circle cx="18.5" cy="18.5" r="1.5"/>
-        <circle cx="18.5" cy="5.5" r="1.5"/>
-        <circle cx="5.5" cy="18.5" r="1.5"/>
-      </g>
-    </svg>
+    <img src="https://raw.githubusercontent.com/sfc-gh-pmanowiecki/semantic-view-best-practices/main/snowflake_logo.svg" alt="Snowflake Logo" />
   </div>
   <h1>Snowflake Semantic View<span class="sub">Best Practices Guide</span></h1>
 </header>
