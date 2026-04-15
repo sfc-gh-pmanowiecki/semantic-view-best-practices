@@ -313,8 +313,30 @@
   <img class="section-img" src="https://raw.githubusercontent.com/sfc-gh-pmanowiecki/semantic-view-best-practices/main/slides/semantic_views_infographic_banner_e6347aa2580b432d95668626d05c9859.png" alt="Introduction - What Are Semantic Views?" />
 
   <div class="card">
-    <h3>The Semantic Layer for Cortex Analyst</h3>
-    <p>A <strong>Semantic View</strong> is a YAML-based metadata layer that sits between your raw Snowflake tables and <strong>Cortex Analyst</strong> (Snowflake's natural-language-to-SQL engine). It teaches Cortex Analyst how to interpret your data so it can generate accurate SQL from plain English questions.</p>
+    <h3>The Semantic Layer for Cortex Analyst &amp; Snowflake Intelligence</h3>
+    <p>A <strong>Semantic View</strong> is a YAML-based metadata layer that sits between your raw Snowflake tables and <strong>Cortex Analyst</strong> — Snowflake's natural-language-to-SQL engine that powers <strong>Snowflake Intelligence</strong>.</p>
+
+    <div class="info-box">
+      <strong>What is Snowflake Intelligence?</strong> Snowflake Intelligence is Snowflake's conversational AI platform powered by <strong>Cortex Agents</strong>. It enables business users to ask questions in natural language and get instant answers from their data. Cortex Analyst is the core engine that translates these questions into SQL queries using semantic views as its guide.
+    </div>
+
+    <h4 style="color: var(--sf-blue); margin-top: 20px;">How They Work Together</h4>
+    <p><strong>Semantic views</strong> fix the mismatch between how business users describe data ("revenue by region") and how it's actually stored in database schemas (`TBL_SALES.AMT_TOTAL`). They define the business meaning of your data by providing:</p>
+    <ul>
+      <li><strong>Business context</strong> — Descriptions that explain what each table and column represents in business terms</li>
+      <li><strong>Relationships</strong> — How tables connect to each other through joins</li>
+      <li><strong>Metrics</strong> — Pre-defined calculations like <code>Net Revenue = SUM(gross_revenue * (1 - discount))</code></li>
+      <li><strong>Filters</strong> — Common data slices like "active customers" or "last quarter"</li>
+      <li><strong>Examples</strong> — Sample question-answer pairs (Verified Queries) that guide the AI</li>
+    </ul>
+
+    <p><strong>Cortex Analyst</strong> uses these semantic views to generate accurate SQL from natural language questions. Instead of guessing column names and join paths, it understands your business concepts and generates reliable queries.</p>
+
+    <p><strong>Snowflake Intelligence</strong> brings it all together: a Cortex Agent orchestrates multiple tools (Cortex Analyst for structured data, Cortex Search for documents, custom tools) to deliver end-to-end natural-language analytics inside Snowflake.</p>
+
+    <div style="margin-top: 16px; padding: 12px; background: #F7FAFC; border-left: 3px solid var(--sf-blue); font-size: 14px;">
+      <strong>Example workflow:</strong> User asks "What were our top 10 products by revenue last quarter?" → Cortex Agent routes to Cortex Analyst → Cortex Analyst reads the semantic view → Generates SQL against physical tables → Returns answer with charts
+    </div>
   </div>
 
   <div class="card">
