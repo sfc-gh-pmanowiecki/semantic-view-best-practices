@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Snowflake Semantic View Best Practices</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --sf-blue:       #29B5E8;
+    --sf-blue-dark:  #0072A3;
+    --sf-navy:       #0D1B2A;
+    --sf-navy-mid:   #13263B;
+    --sf-navy-light: #1C3550;
+    --sf-teal:       #00C7B1;
+    --bg:            #F4F7FB;
+    --card:          #FFFFFF;
+    --border:        #DDE4EF;
+    --text:          #1A2B40;
+    --text-muted:    #637695;
+    --code-bg:       #0F1E2E;
+    --code-text:     #C9D8E8;
+    --green:         #18B56A;
+    --red:           #E5534B;
+    --orange:        #F5A623;
+    --yellow:        #F8D000;
+    --purple:        #8B5CF6;
+    --sidebar-w:     260px;
+    --header-h:      58px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--header-h); background: var(--sf-navy);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 24px; z-index: 100;
+    border-bottom: 2px solid var(--sf-blue);
+  }
+  .logo {
+    width: 32px; height: 32px; background: var(--sf-blue); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; color: #fff; flex-shrink: 0;
+  }
+  header h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+  header span.sub { color: var(--sf-blue); font-size: 13px; margin-left: 6px; font-weight: 400; }
+
+  /* Layout */
+  .layout { display: flex; margin-top: var(--header-h); flex: 1; }
+
+  /* Sidebar */
+  nav {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sf-navy-mid); position: fixed;
+    top: var(--header-h); bottom: 0; overflow-y: auto;
+    padding: 16px 0; z-index: 90;
+  }
+  nav::-webkit-scrollbar { width: 4px; }
+  nav::-webkit-scrollbar-thumb { background: var(--sf-navy-light); border-radius: 2px; }
+  .nav-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--text-muted);
+    padding: 14px 20px 4px;
+  }
+  nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px; color: #8CA4BF;
+    text-decoration: none; font-size: 13.5px;
+    border-left: 3px solid transparent; transition: all .15s;
+  }
+  nav a:hover { color: #fff; background: rgba(41,181,232,.08); border-left-color: var(--sf-blue); }
+  nav a.active { color: #fff; background: rgba(41,181,232,.12); border-left-color: var(--sf-blue); font-weight: 600; }
+  nav .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+  nav .nav-num { font-size: 10px; background: var(--sf-navy-light); color: var(--sf-blue); border-radius: 4px; padding: 1px 5px; margin-left: auto; }
+
+  /* Main Content */
+  main {
+    margin-left: var(--sidebar-w); flex: 1;
+    padding: 32px 40px 80px; max-width: 960px;
+  }
+
+  /* Sections */
+  .section { margin-bottom: 56px; scroll-margin-top: 80px; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-num {
+    background: var(--sf-blue); color: #fff; font-weight: 700;
+    font-size: 13px; width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 22px; font-weight: 700; color: var(--sf-navy); }
+  .section-header .badge {
+    font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 24px; margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; color: var(--sf-navy); }
+  .card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .card p, .card li { font-size: 14px; }
+  .card ul, .card ol { padding-left: 20px; margin-top: 6px; margin-bottom: 10px; }
+  .card li { margin-bottom: 4px; }
+
+  /* Code blocks */
+  pre {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 16px 20px; border-radius: 8px; overflow-x: auto;
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 13px; line-height: 1.6; margin: 12px 0;
+    border: 1px solid #1a3048;
+  }
+  code {
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 12.5px;
+  }
+  :not(pre) > code {
+    background: #EDF2F7; padding: 2px 6px; border-radius: 4px;
+    color: var(--sf-blue-dark); font-size: 12.5px;
+  }
+  .code-label {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
+    margin-bottom: 6px; color: var(--text-muted);
+  }
+  /* Syntax highlight hints */
+  .hl-key { color: #7EC8E3; }
+  .hl-str { color: #A8D8A8; }
+  .hl-comment { color: #5C7A99; font-style: italic; }
+  .hl-num { color: #F5A623; }
+  .hl-kw { color: #C792EA; }
+
+  /* Do/Don't cards */
+  .do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  .do-card, .dont-card {
+    border-radius: 8px; padding: 16px; font-size: 13px;
+  }
+  .do-card {
+    background: #F0FFF4; border: 1px solid #C6F6D5;
+  }
+  .do-card::before { content: "DO"; font-weight: 800; color: var(--green); display: block; margin-bottom: 8px; font-size: 12px; letter-spacing: 1px; }
+  .dont-card {
+    background: #FFF5F5; border: 1px solid #FED7D7;
+  }
+  .dont-card::before { content: "DON'T"; font-weight: 800; color: var(--red); display: block; margin-bottom: 8px; font-size: 12px; letter-spacing: 1px; }
+
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: var(--sf-navy); color: #fff; padding: 10px 14px;
+    text-align: left; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #F8FAFD; }
+
+  /* Flowchart */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .flow-step {
+    background: var(--sf-navy); color: #fff; padding: 10px 18px;
+    border-radius: 8px; font-size: 13px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .flow-step.highlight { background: var(--sf-blue); }
+  .flow-arrow { color: var(--sf-blue); font-size: 20px; font-weight: 700; }
+
+  /* Stat boxes */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 16px 0; }
+  .stat-box {
+    background: linear-gradient(135deg, var(--sf-navy) 0%, var(--sf-navy-mid) 100%);
+    color: #fff; padding: 20px; border-radius: 10px; text-align: center;
+  }
+  .stat-box .num { font-size: 28px; font-weight: 800; color: var(--sf-blue); display: block; }
+  .stat-box .label { font-size: 12px; color: #8CA4BF; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* Alert / Info boxes */
+  .info-box {
+    border-left: 4px solid var(--sf-blue); background: #EBF8FF;
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 12px 0;
+    font-size: 13.5px;
+  }
+  .warn-box {
+    border-left: 4px solid var(--orange); background: #FFFBEB;
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 12px 0;
+    font-size: 13.5px;
+  }
+  .err-box {
+    border-left: 4px solid var(--red); background: #FFF5F5;
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 12px 0;
+    font-size: 13.5px;
+  }
+  .info-box strong, .warn-box strong, .err-box strong { font-size: 13px; }
+
+  /* Severity tags */
+  .sev { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: .3px; }
+  .sev-critical { background: #FED7D7; color: #C53030; }
+  .sev-high { background: #FEEBC8; color: #C05621; }
+  .sev-medium { background: #FEFCBF; color: #975A16; }
+  .sev-low { background: #E0F2FE; color: #2B6CB0; }
+
+  /* Collapsible */
+  details { margin: 12px 0; }
+  details summary {
+    cursor: pointer; font-weight: 600; font-size: 14px;
+    color: var(--sf-blue-dark); padding: 8px 0;
+  }
+  details summary:hover { color: var(--sf-blue); }
+  details[open] summary { margin-bottom: 8px; }
+
+  /* Priority list */
+  .priority-list { counter-reset: prio; list-style: none; padding-left: 0; }
+  .priority-list li {
+    counter-increment: prio; display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .priority-list li::before {
+    content: counter(prio); background: var(--sf-blue); color: #fff;
+    width: 26px; height: 26px; border-radius: 50%; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* Two-column grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) {
+    .grid-2, .do-dont { grid-template-columns: 1fr; }
+    main { padding: 20px; }
+    nav { display: none; }
+    main { margin-left: 0; }
+  }
+
+  /* Pill tags */
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 12px; margin-right: 4px;
+  }
+  .pill-physical { background: #DBEAFE; color: #1E40AF; }
+  .pill-computed { background: #D1FAE5; color: #065F46; }
+  .pill-deprecated { background: #FEE2E2; color: #991B1B; }
+  .pill-enhance { background: #FEF3C7; color: #92400E; }
+
+  /* Section images */
+  .section-img {
+    width: 100%; border-radius: 10px; margin-bottom: 20px;
+    border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">S</div>
+  <h1>Snowflake Semantic View<span class="sub">Best Practices Guide</span></h1>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <div class="nav-section-label">Foundations</div>
+  <a href="#intro"><span class="nav-icon">1</span> Introduction<span class="nav-num">01</span></a>
+  <a href="#skill"><span class="nav-icon">2</span> Using the Skill<span class="nav-num">02</span></a>
+  <a href="#anatomy"><span class="nav-icon">3</span> YAML Anatomy<span class="nav-num">03</span></a>
+  <a href="#concepts"><span class="nav-icon">4</span> Key Concepts<span class="nav-num">04</span></a>
+  <a href="#creation"><span class="nav-icon">5</span> Creation Workflow<span class="nav-num">05</span></a>
+
+  <div class="nav-section-label">Best Practices</div>
+  <a href="#sizing"><span class="nav-icon">6</span> Sizing &amp; Architecture<span class="nav-num">06</span></a>
+  <a href="#descriptions"><span class="nav-icon">7</span> Descriptions &amp; Metadata<span class="nav-num">07</span></a>
+  <a href="#metrics"><span class="nav-icon">8</span> Metrics, Filters &amp; Joins<span class="nav-num">08</span></a>
+  <a href="#vqrs"><span class="nav-icon">9</span> Verified Queries<span class="nav-num">09</span></a>
+  <a href="#instructions"><span class="nav-icon">10</span> Custom Instructions<span class="nav-num">10</span></a>
+
+  <div class="nav-section-label">Operations</div>
+  <a href="#audit"><span class="nav-icon">11</span> Audit &amp; Quality<span class="nav-num">11</span></a>
+  <a href="#debug"><span class="nav-icon">12</span> Debug Workflow<span class="nav-num">12</span></a>
+  <a href="#improve"><span class="nav-icon">13</span> Improvement Loop<span class="nav-num">13</span></a>
+  <a href="#pitfalls"><span class="nav-icon">14</span> Common Pitfalls<span class="nav-num">14</span></a>
+</nav>
+
+<!-- Main Content -->
+<main>
+
+<!-- ================================================================== -->
+<!-- SECTION 1: Introduction -->
+<!-- ================================================================== -->
+<div class="section" id="intro">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <h2>What Are Semantic Views?</h2>
+
+  </div>
+  <img class="section-img" src="slides/snowflake_semantic_views_infographic_b5a2990f8bc849f0bc652552387e4c34.png" alt="Introduction - What Are Semantic Views?" />
+
+  <div class="card">
+    <h3>The Semantic Layer for Cortex Analyst</h3>
+    <p>A <strong>Semantic View</strong> is a YAML-based metadata layer that sits between your raw Snowflake tables and <strong>Cortex Analyst</strong> (Snowflake's natural-language-to-SQL engine). It teaches Cortex Analyst how to interpret your data so it can generate accurate SQL from plain English questions.</p>
+
+    <div class="stats">
+      <div class="stat-box">
+        <span class="num">40-60%</span>
+        <span class="label">Accuracy boost with VQRs</span>
+      </div>
+      <div class="stat-box">
+        <span class="num">32K</span>
+        <span class="label">Max tokens (excl. VQRs)</span>
+      </div>
+      <div class="stat-box">
+        <span class="num">50-100</span>
+        <span class="label">Recommended columns per SV</span>
+      </div>
+      <div class="stat-box">
+        <span class="num">40</span>
+        <span class="label">Max SVs with routing</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Why YAML, Not SQL DDL?</h3>
+    <p>Semantic views use YAML because it supports features that SQL DDL cannot express:</p>
+    <ul>
+      <li><strong>Verified Queries (VQRs)</strong> &mdash; example question+SQL pairs for few-shot learning</li>
+      <li><strong>Sample values</strong> &mdash; representative data values for filter generation</li>
+      <li><strong>Custom instructions</strong> &mdash; natural language guidance for the LLM</li>
+      <li><strong>Rich descriptions</strong> &mdash; business context for every column and table</li>
+      <li><strong>Metrics</strong> &mdash; pre-defined aggregation logic (SUM, COUNT, AVG)</li>
+      <li><strong>Named filters</strong> &mdash; reusable WHERE clause patterns</li>
+    </ul>
+    <p>YAML also aligns with the OSI v1.0 standard and enables version control via Git CI/CD pipelines.</p>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 2: Using the semantic-view Skill -->
+<!-- ================================================================== -->
+<div class="section" id="skill">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <h2>Using the <code>semantic-view</code> Skill in Cortex Code</h2>
+
+  </div>
+
+  <div class="card">
+    <h3>What Is the <code>semantic-view</code> Skill?</h3>
+    <p>The <code>semantic-view</code> skill is a <strong>bundled skill inside the Cortex Code CLI</strong> (the Snowflake fork of Claude Code). It is the single entry point for all semantic view operations &mdash; creation, optimization, auditing, debugging, VQR generation, and more. Every best practice described in this guide is implemented as a workflow inside this skill.</p>
+    <div class="info-box">
+      <strong>You do not need to install anything.</strong> The skill ships with Cortex Code and is automatically invoked when you mention semantic views in your prompt.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>How to Invoke the Skill</h3>
+    <p>Simply describe what you want in natural language. The skill triggers automatically on keywords like <em>create</em>, <em>optimize</em>, <em>debug</em>, <em>audit</em>, <em>improve</em>, <em>suggest VQRs</em>, <em>suggest metrics</em>, or <em>import Tableau</em>.</p>
+
+    <span class="code-label">Example prompts in Cortex Code CLI</span>
+    <pre><span class="hl-comment"># Create a new semantic view</span>
+<span class="hl-str">"Create a semantic view for our sales tables in ANALYTICS_DB.SEMANTIC_MODELS"</span>
+
+<span class="hl-comment"># Optimize an existing one</span>
+<span class="hl-str">"Optimize the semantic view PROD_DB.MODELS.SALES_SV"</span>
+
+<span class="hl-comment"># Debug SQL generation issues</span>
+<span class="hl-str">"Debug why 'top 10 customers by revenue' generates wrong SQL on MY_DB.SCHEMA.MY_VIEW"</span>
+
+<span class="hl-comment"># Run a best practices audit</span>
+<span class="hl-str">"Audit ANALYTICS_DB.MODELS.FINANCE_SV for best practices"</span>
+
+<span class="hl-comment"># Generate VQR suggestions from usage history</span>
+<span class="hl-str">"Suggest VQRs for PROD_DB.MODELS.SALES_SV"</span>
+
+<span class="hl-comment"># Suggest metrics and filters from query history</span>
+<span class="hl-str">"Suggest metrics and filters for PROD_DB.MODELS.SALES_SV"</span>
+
+<span class="hl-comment"># Import a Tableau workbook</span>
+<span class="hl-str">"Import the Tableau workbook at @MY_STAGE/dashboard.twbx as a semantic view"</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>Skill Workflow Routing</h3>
+    <p>After initialization, the skill automatically routes to the right workflow based on your intent:</p>
+
+    <div class="flow">
+      <div class="flow-step">Your Prompt</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">semantic-view skill</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Route</div>
+    </div>
+
+    <table>
+      <tr><th>Intent</th><th>Workflow</th><th>What Happens</th></tr>
+      <tr>
+        <td>Create new SV</td>
+        <td><strong>Creation Mode</strong></td>
+        <td>FastGen API generates YAML from your tables and SQL queries, then validates</td>
+      </tr>
+      <tr>
+        <td>Import Tableau file</td>
+        <td><strong>Tableau Import</strong></td>
+        <td>Analyzes <code>.twb/.twbx/.tds/.tdsx</code>, exports to semantic view YAML</td>
+      </tr>
+      <tr>
+        <td>Audit / check quality</td>
+        <td><strong>Audit Mode</strong></td>
+        <td>VQR testing, best practices verification, inconsistency &amp; duplicate detection</td>
+      </tr>
+      <tr>
+        <td>Fix SQL generation</td>
+        <td><strong>Debug Mode</strong></td>
+        <td>Diagnosis &rarr; Root Cause Analysis &rarr; Apply targeted optimizations</td>
+      </tr>
+      <tr>
+        <td>Suggest VQRs</td>
+        <td><strong>VQR Suggestions</strong></td>
+        <td>Mines CA request history + query history in parallel, returns ranked suggestions</td>
+      </tr>
+      <tr>
+        <td>Suggest metrics / filters</td>
+        <td><strong>Filters &amp; Metrics Suggestions</strong></td>
+        <td>Uses <code>SYSTEM$CORTEX_ANALYST_SVA_TOOL</code> to suggest metrics, filters, and computed facts from real usage</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Prerequisites</h3>
+    <ul>
+      <li><strong>Cortex Code CLI</strong> installed and connected to Snowflake</li>
+      <li><strong>Fully qualified semantic view name</strong> for existing views: <code>DATABASE.SCHEMA.VIEW_NAME</code></li>
+      <li><strong>Python managed via <code>uv</code></strong> &mdash; the skill uses <code>uv run python</code> for all scripts</li>
+      <li><strong>Dependencies:</strong> <code>tomli</code>, <code>urllib3</code>, <code>requests</code>, <code>pyyaml</code>, <code>snowflake-connector-python</code> (auto-managed by <code>uv</code>)</li>
+    </ul>
+    <div class="warn-box">
+      <strong>The skill always tests locally first.</strong> Changes are applied to a local YAML file. Upload to Snowflake only happens when you explicitly ask for deployment.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Skill Capabilities at a Glance</h3>
+    <div class="stats">
+      <div class="stat-box"><span class="num">6</span><span class="label">Core workflows</span></div>
+      <div class="stat-box"><span class="num">18</span><span class="label">Python scripts</span></div>
+      <div class="stat-box"><span class="num">42</span><span class="label">Guidance documents</span></div>
+      <div class="stat-box"><span class="num">5</span><span class="label">Optimization patterns</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 3: YAML Anatomy -->
+<!-- ================================================================== -->
+<div class="section" id="anatomy">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <h2>YAML Anatomy &mdash; Structure of a Semantic View</h2>
+
+  </div>
+  <img class="section-img" src="slides/yaml_semantic_view_structure_64879eccf873415ea22a88f19e16ee5d.png" alt="YAML Anatomy" />
+
+  <div class="card">
+    <h3>Complete YAML Skeleton</h3>
+    <p>Every semantic view follows this structure. Elements are categorized as <span class="pill pill-physical">Physical</span> (mapped to real columns) or <span class="pill pill-computed">Computed</span> (added logic).</p>
+
+    <pre><span class="hl-key">name:</span> <span class="hl-str">my_analytics_model</span>
+<span class="hl-key">description:</span> <span class="hl-str">"Sales analytics for the North America region"</span>
+
+<span class="hl-comment"># ---- Tables ----</span>
+<span class="hl-key">tables:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">SALES</span>                  <span class="hl-comment"># Logical name (for humans)</span>
+    <span class="hl-key">description:</span> <span class="hl-str">"Daily sales transactions"</span>
+    <span class="hl-key">base_table:</span>
+      <span class="hl-key">database:</span> <span class="hl-str">PROD_DB</span>
+      <span class="hl-key">schema:</span> <span class="hl-str">ANALYTICS</span>
+      <span class="hl-key">table:</span> <span class="hl-str">TBL_SALES</span>           <span class="hl-comment"># Physical table name</span>
+
+    <span class="hl-comment"># Physical columns (CANNOT add new ones)</span>
+    <span class="hl-key">dimensions:</span>                     <span class="hl-comment"># <span class="pill pill-physical">Physical</span> categorical</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">REGION</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Sales region (NA, EMEA, APAC)"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">region</span>
+        <span class="hl-key">data_type:</span> <span class="hl-str">TEXT</span>
+        <span class="hl-key">sample_values:</span> <span class="hl-str">["NA", "EMEA", "APAC"]</span>
+
+    <span class="hl-key">time_dimensions:</span>                <span class="hl-comment"># <span class="pill pill-physical">Physical</span> date/time</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">SALE_DATE</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Date the transaction occurred"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">sale_date</span>
+        <span class="hl-key">data_type:</span> <span class="hl-str">DATE</span>
+
+    <span class="hl-key">facts:</span>                          <span class="hl-comment"># <span class="pill pill-physical">Physical</span> numeric</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">REVENUE</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Transaction revenue in USD"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">revenue_usd</span>
+        <span class="hl-key">data_type:</span> <span class="hl-str">NUMBER</span>
+
+    <span class="hl-comment"># Computed elements (CAN add new ones)</span>
+    <span class="hl-key">metrics:</span>                        <span class="hl-comment"># <span class="pill pill-computed">Computed</span> aggregations</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">TOTAL_REVENUE</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Sum of all revenue"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">SUM(revenue_usd)</span>
+        <span class="hl-key">access_modifier:</span> <span class="hl-str">public_access</span>
+
+    <span class="hl-key">filters:</span>                        <span class="hl-comment"># <span class="pill pill-computed">Computed</span> WHERE clauses</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">LAST_30_DAYS</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Records from the last 30 days"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">sale_date >= DATEADD(day, -30, CURRENT_DATE())</span>
+
+<span class="hl-comment"># ---- Relationships ----</span>
+<span class="hl-key">relationships:</span>                      <span class="hl-comment"># <span class="pill pill-computed">Computed</span> joins</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">sales_to_customers</span>
+    <span class="hl-key">left_table:</span> <span class="hl-str">SALES</span>
+    <span class="hl-key">right_table:</span> <span class="hl-str">CUSTOMERS</span>
+    <span class="hl-key">relationship_columns:</span>
+      - <span class="hl-key">left_column:</span> <span class="hl-str">CUSTOMER_ID</span>
+        <span class="hl-key">right_column:</span> <span class="hl-str">CUSTOMER_ID</span>
+    <span class="hl-key">relationship_type:</span> <span class="hl-str">many_to_one</span>
+    <span class="hl-key">join_type:</span> <span class="hl-str">left_outer</span>
+
+<span class="hl-comment"># ---- Verified Queries ----</span>
+<span class="hl-key">verified_queries:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">vqr_0</span>
+    <span class="hl-key">question:</span> <span class="hl-str">"What is the total revenue by region?"</span>
+    <span class="hl-key">sql:</span> <span class="hl-str">|</span>
+      SELECT region, SUM(revenue_usd) AS total_revenue
+      FROM prod_db.analytics.tbl_sales
+      GROUP BY region ORDER BY total_revenue DESC
+
+<span class="hl-comment"># ---- Custom Instructions ----</span>
+<span class="hl-key">module_custom_instructions:</span>         <span class="hl-comment"># <span class="pill pill-computed">Computed</span> LLM guidance</span>
+  <span class="hl-key">sql_generation:</span> <span class="hl-str">|</span>
+    Use table aliases for readability.
+  <span class="hl-key">question_categorization:</span> <span class="hl-str">|</span>
+    Treat trend questions as UNAMBIGUOUS_SQL.</pre>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 3: Key Concepts -->
+<!-- ================================================================== -->
+<div class="section" id="concepts">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <h2>Key Concepts &mdash; What You Can &amp; Cannot Do</h2>
+
+  </div>
+  <img class="section-img" src="slides/snowflake_key_concepts_infographic_7a1f899d0b39410ba5b93d38189431a7.png" alt="Key Concepts" />
+
+  <div class="card">
+    <h3>Physical vs Computed Elements</h3>
+    <table>
+      <tr>
+        <th>Category</th>
+        <th>Elements</th>
+        <th>Can Add New?</th>
+        <th>Can Enhance?</th>
+      </tr>
+      <tr>
+        <td><span class="pill pill-physical">Physical</span></td>
+        <td>Dimensions, Facts, Time Dimensions</td>
+        <td><strong style="color:var(--red)">No</strong> &mdash; mapped to real columns</td>
+        <td><strong style="color:var(--green)">Yes</strong> &mdash; descriptions, synonyms, sample_values</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-computed">Computed</span></td>
+        <td>Metrics, Filters, Relationships, Custom Instructions</td>
+        <td><strong style="color:var(--green)">Yes</strong></td>
+        <td><strong style="color:var(--green)">Yes</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Logical vs Physical Table Names</h3>
+    <div class="grid-2">
+      <div>
+        <span class="code-label">YAML Definition (Logical)</span>
+        <pre><span class="hl-key">tables:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">SALES_FACT</span>   <span class="hl-comment"># Logical</span>
+    <span class="hl-key">base_table:</span>
+      <span class="hl-key">table:</span> <span class="hl-str">TBL_SALES</span>  <span class="hl-comment"># Physical</span></pre>
+      </div>
+      <div>
+        <span class="code-label">Generated SQL (Physical)</span>
+        <pre><span class="hl-kw">SELECT</span> * <span class="hl-kw">FROM</span> prod.sales.tbl_sales
+<span class="hl-comment">-- Uses physical name. This is CORRECT!</span></pre>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Key insight:</strong> Cortex Analyst always generates SQL with physical <code>base_table</code> references, never logical names. This is expected and correct behavior.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Deprecated Fields &mdash; Never Use These</h3>
+    <table>
+      <tr><th>Deprecated Field</th><th>Replacement</th><th>Reason</th></tr>
+      <tr><td><code><span class="pill pill-deprecated">measures</span></code></td><td><code>facts</code></td><td>Renamed in current spec</td></tr>
+      <tr><td><code><span class="pill pill-deprecated">default_aggregation</span></code></td><td>Use <code>metrics</code></td><td>Deprecated from proto</td></tr>
+      <tr><td><code><span class="pill pill-deprecated">one_to_many</span></code></td><td><code>many_to_one</code> (swap tables)</td><td>Deprecated relationship type</td></tr>
+      <tr><td><code><span class="pill pill-deprecated">many_to_many</span></code></td><td>Not supported</td><td>Requires PK on at least one side</td></tr>
+      <tr><td><code><span class="pill pill-deprecated">full_outer / cross / right_outer</span></code></td><td><code>inner</code> or <code>left_outer</code></td><td>Deprecated join types</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 4: Creation Workflow -->
+<!-- ================================================================== -->
+<div class="section" id="creation">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2>Creation Workflow</h2>
+
+
+  </div>
+  <img class="section-img" src="slides/creation_workflow_infographic_5e6b5a1c375b4861a1da1f3edb74fb76.png" alt="Creation Workflow" />
+
+  <div class="card">
+    <h3>Step-by-Step Process</h3>
+    <div class="flow">
+      <div class="flow-step">1. Name &amp; Context</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">2. Explore Schema</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">3. Generate YAML</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">4. Validate</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">5. Deploy</div>
+    </div>
+
+    <h4>Context Gathering (Step 1)</h4>
+    <ul>
+      <li><strong>Name:</strong> simple identifier or FQN (<code>DATABASE.SCHEMA.NAME</code>)</li>
+      <li><strong>Target:</strong> database + schema for the semantic view</li>
+      <li><strong>Context:</strong> SQL queries, table references, and business context &mdash; all in one request</li>
+    </ul>
+
+    <h4>Two Creation Paths</h4>
+    <div class="grid-2">
+      <div class="info-box">
+        <strong>FastGen API (Automated)</strong><br>
+        Extracts metadata, infers PKs and relationships, generates dimensions/facts/metrics/VQRs automatically. Recommended for most use cases.
+      </div>
+      <div class="info-box">
+        <strong>Manual Creation</strong><br>
+        Hand-craft the YAML using <code>DESCRIBE TABLE</code> results and business knowledge. Fallback when FastGen fails.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Deployment Options</h3>
+    <div class="grid-2">
+      <div>
+        <h4>Option 1: Database Object (Recommended)</h4>
+        <pre><span class="hl-kw">CALL</span> SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML(
+  <span class="hl-str">'DATABASE.SCHEMA'</span>,
+  <span class="hl-str">'&lt;yaml_content&gt;'</span>,
+  <span class="hl-kw">FALSE</span>  <span class="hl-comment">-- FALSE = create</span>
+);</pre>
+        <p>Creates a managed Snowflake object. No stage needed.</p>
+      </div>
+      <div>
+        <h4>Option 2: Stage Upload</h4>
+        <pre><span class="hl-kw">CREATE STAGE IF NOT EXISTS</span> my_stage;
+<span class="hl-kw">PUT</span> file://model.yaml @my_stage/;</pre>
+        <p>Reference via stage path: <code>@my_stage/model.yaml</code></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Validation &mdash; Always Validate Before Deploying</h3>
+    <pre><span class="hl-comment">-- In Cortex Code:</span>
+reflect_semantic_model(semantic_model_file=<span class="hl-str">"path/to/model.yaml"</span>)
+
+<span class="hl-comment">-- Via SQL (validate only, don't create):</span>
+<span class="hl-kw">CALL</span> SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML(
+  <span class="hl-str">'DB.SCHEMA'</span>, <span class="hl-str">'&lt;yaml&gt;'</span>, <span class="hl-kw">TRUE</span>  <span class="hl-comment">-- TRUE = validate only</span>
+);</pre>
+    <div class="warn-box">
+      <strong>Always validate after every change.</strong> Common errors: invalid data types, missing required fields, incorrect YAML syntax, using deprecated fields.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 5: Sizing & Architecture -->
+<!-- ================================================================== -->
+<div class="section" id="sizing">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <h2>Sizing &amp; Architecture</h2>
+
+  </div>
+  <img class="section-img" src="slides/semantic_view_sizing_architecture_97e645dd9e2640bf8fe60570a6319909.png" alt="Sizing and Architecture" />
+
+  <div class="card">
+    <h3>Size Limits</h3>
+    <div class="stats">
+      <div class="stat-box"><span class="num">32K</span><span class="label">Token limit (excl. VQRs)</span></div>
+      <div class="stat-box"><span class="num">20K</span><span class="label">Performance sweet spot</span></div>
+      <div class="stat-box"><span class="num">50-100</span><span class="label">Columns per SV</span></div>
+      <div class="stat-box"><span class="num">100</span><span class="label">Table hard limit</span></div>
+    </div>
+
+    <div class="warn-box">
+      <strong>Performance degrades above 20K tokens.</strong> If your semantic view exceeds this, consider splitting by domain.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Domain-Based Splitting</h3>
+    <p>When a single semantic view grows too large, split by business domain:</p>
+    <ul>
+      <li><strong>One SV per business domain</strong> (Sales, Finance, Marketing, etc.)</li>
+      <li><strong>50-100 columns each</strong> &mdash; focused on domain-specific questions</li>
+      <li><strong>Duplicate shared dimensions</strong> (e.g., <code>date</code>, <code>region</code>) across SVs</li>
+      <li><strong>Use Cortex Analyst routing</strong> to direct questions to the right SV (up to 40 SVs)</li>
+    </ul>
+
+    <div class="flow">
+      <div class="flow-step">User Question</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">Router (up to 40 SVs)</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Sales SV</div>
+    </div>
+    <div class="flow" style="margin-top:4px; padding-left: 260px;">
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Finance SV</div>
+    </div>
+    <div class="flow" style="margin-top:4px; padding-left: 260px;">
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Marketing SV</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 6: Descriptions & Metadata -->
+<!-- ================================================================== -->
+<div class="section" id="descriptions">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <h2>Descriptions &amp; Metadata &mdash; The Biggest Accuracy Lever</h2>
+
+
+  </div>
+  <img class="section-img" src="slides/metadata_accuracy_infographic_7abe491b16864f969ba626a0583975d4.png" alt="Descriptions and Metadata" />
+
+  <div class="card">
+    <h3>Descriptions Have the Biggest Impact</h3>
+    <p>Rich, contextual descriptions are the single most impactful thing you can do for accuracy. They outperform synonyms for English-language environments.</p>
+
+    <div class="do-dont">
+      <div class="dont-card">
+        <pre><span class="hl-key">- name:</span> <span class="hl-str">ACCOUNT_ID</span>
+  <span class="hl-key">description:</span> <span class="hl-str">"Account ID"</span>
+  <span class="hl-key">expr:</span> <span class="hl-str">account_id</span>
+  <span class="hl-key">data_type:</span> <span class="hl-str">NUMBER</span></pre>
+        <p>Minimal &mdash; just repeats the column name. Gives the LLM nothing to work with.</p>
+      </div>
+      <div class="do-card">
+        <pre><span class="hl-key">- name:</span> <span class="hl-str">ACCOUNT_ID</span>
+  <span class="hl-key">description:</span> <span class="hl-str">"Unique identifier for
+    Snowflake accounts. Used to
+    track usage and link with
+    customer information."</span>
+  <span class="hl-key">expr:</span> <span class="hl-str">account_id</span>
+  <span class="hl-key">data_type:</span> <span class="hl-str">NUMBER</span>
+  <span class="hl-key">unique:</span> <span class="hl-str">true</span></pre>
+        <p>Rich context: what it is, how it's used, business relationships. Plus <code>unique: true</code> to prevent unnecessary DISTINCT.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Description Best Practices</h3>
+    <p>Every description should cover:</p>
+    <ul>
+      <li><strong>What</strong> the column represents</li>
+      <li><strong>How</strong> it's commonly used in queries</li>
+      <li><strong>Relationships</strong> to other data (foreign keys, hierarchies)</li>
+      <li><strong>Business context</strong> (what domain it belongs to)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Sample Values &amp; Cortex Search</h3>
+    <table>
+      <tr><th>Distinct Values</th><th>Approach</th><th>Example</th></tr>
+      <tr>
+        <td>Fewer than 10</td>
+        <td>Use <code>sample_values</code></td>
+        <td><code>sample_values: ["NA", "EMEA", "APAC"]</code></td>
+      </tr>
+      <tr>
+        <td>More than 10</td>
+        <td>Use <strong>Cortex Search</strong></td>
+        <td>Auto-updating, low cost, scales to thousands</td>
+      </tr>
+    </table>
+    <div class="info-box">
+      <strong>Tip:</strong> For boolean/enum-like columns, also set <code>sample_values</code> to help the LLM generate correct filter values.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Enhancement Strategies</h3>
+    <table>
+      <tr><th>Enhancement</th><th>When to Use</th><th>Impact</th></tr>
+      <tr><td><strong>Descriptions</strong></td><td>Always &mdash; every column and table</td><td>Highest impact</td></tr>
+      <tr><td><strong>Sample values</strong></td><td>Categorical columns with few values</td><td>High &mdash; better filter generation</td></tr>
+      <tr><td><strong>Unique flag</strong></td><td>Primary key columns</td><td>Medium &mdash; prevents unnecessary DISTINCT</td></tr>
+      <tr><td><strong>Synonyms</strong></td><td>Non-English environments or strong aliases</td><td>Lower &mdash; descriptions are usually enough</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 7: Metrics, Filters & Relationships -->
+<!-- ================================================================== -->
+<div class="section" id="metrics">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <h2>Metrics, Filters &amp; Relationships</h2>
+
+  </div>
+  <img class="section-img" src="slides/metrics_filters_relationships_pyramid_c893bf8b053d427993b073a5ca86a335.png" alt="Metrics, Filters and Relationships" />
+
+  <div class="card">
+    <h3>Optimization Priority</h3>
+    <p>When fixing SQL generation issues, apply fixes in this order:</p>
+    <ol class="priority-list">
+      <li><div><strong>Enhance Dimensions &amp; Facts</strong><br>Improve descriptions, add synonyms, sample_values. Lowest risk, highest impact.</div></li>
+      <li><div><strong>Add Metrics</strong><br>Define common aggregations (SUM, COUNT, AVG) to prevent wrong aggregation logic.</div></li>
+      <li><div><strong>Add Filters</strong><br>Named WHERE clauses for business logic (active customers, last 30 days, etc.).</div></li>
+      <li><div><strong>Add/Fix Relationships</strong><br>Table joins. Requires primary key on at least one side.</div></li>
+      <li><div><strong>Custom Instructions</strong><br><em>Last resort.</em> Only when semantic model elements cannot express the logic.</div></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>Metrics</h3>
+    <p>Facts are raw numeric columns. <strong>Metrics</strong> are computed aggregations you can add.</p>
+    <pre><span class="hl-key">metrics:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">TOTAL_REVENUE</span>
+    <span class="hl-key">description:</span> <span class="hl-str">"Sum of all order amounts"</span>
+    <span class="hl-key">expr:</span> <span class="hl-str">SUM(order_amount)</span>
+    <span class="hl-key">access_modifier:</span> <span class="hl-str">public_access</span>
+
+  - <span class="hl-key">name:</span> <span class="hl-str">UNIQUE_CUSTOMERS</span>
+    <span class="hl-key">description:</span> <span class="hl-str">"Count of distinct customers"</span>
+    <span class="hl-key">expr:</span> <span class="hl-str">COUNT(DISTINCT customer_id)</span>
+    <span class="hl-key">access_modifier:</span> <span class="hl-str">public_access</span>
+
+  - <span class="hl-key">name:</span> <span class="hl-str">AVG_ORDER_VALUE</span>
+    <span class="hl-key">description:</span> <span class="hl-str">"Average value across all orders"</span>
+    <span class="hl-key">expr:</span> <span class="hl-str">AVG(order_amount)</span>
+    <span class="hl-key">access_modifier:</span> <span class="hl-str">public_access</span></pre>
+    <div class="warn-box">
+      <strong>Always include <code>access_modifier: public_access</code>.</strong> Missing it is a common error.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Filters</h3>
+    <p>Named WHERE clauses that must be <strong>nested under the table they apply to</strong>.</p>
+    <pre><span class="hl-key">tables:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">CUSTOMERS</span>
+    <span class="hl-key">filters:</span>
+      - <span class="hl-key">name:</span> <span class="hl-str">ACTIVE_CUSTOMERS</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Customers with active status and recent purchases"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">status = 'ACTIVE' AND last_purchase_date >= DATEADD(month, -6, CURRENT_DATE())</span>
+
+      - <span class="hl-key">name:</span> <span class="hl-str">LAST_30_DAYS</span>
+        <span class="hl-key">description:</span> <span class="hl-str">"Records from the last 30 days"</span>
+        <span class="hl-key">expr:</span> <span class="hl-str">created_date >= DATEADD(day, -30, CURRENT_DATE())</span></pre>
+
+    <div class="do-dont">
+      <div class="do-card">
+        <p>Filters nested under tables</p>
+        <p>Simple WHERE-style expressions</p>
+        <p>Clear descriptions of when to use</p>
+      </div>
+      <div class="dont-card">
+        <p>Filters at the top level</p>
+        <p>HAVING clauses (use metrics instead)</p>
+        <p>Aggregation-dependent filters</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Relationships (Joins)</h3>
+    <table>
+      <tr><th>Property</th><th>Allowed Values</th><th>Notes</th></tr>
+      <tr><td><code>relationship_type</code></td><td><code>one_to_one</code>, <code>many_to_one</code></td><td>Must have PK on at least one side</td></tr>
+      <tr><td><code>join_type</code></td><td><code>inner</code>, <code>left_outer</code></td><td>Use <code>left_outer</code> unless reference data must exist</td></tr>
+    </table>
+
+    <pre><span class="hl-key">relationships:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">orders_to_customers</span>
+    <span class="hl-key">left_table:</span> <span class="hl-str">ORDERS</span>
+    <span class="hl-key">right_table:</span> <span class="hl-str">CUSTOMERS</span>
+    <span class="hl-key">relationship_columns:</span>
+      - <span class="hl-key">left_column:</span> <span class="hl-str">CUSTOMER_ID</span>
+        <span class="hl-key">right_column:</span> <span class="hl-str">CUSTOMER_ID</span>
+    <span class="hl-key">relationship_type:</span> <span class="hl-str">many_to_one</span>
+    <span class="hl-key">join_type:</span> <span class="hl-str">left_outer</span></pre>
+
+    <div class="err-box">
+      <strong>Primary Key Required:</strong> At least one table in the relationship must have a primary key on the join columns. Verify with <code>infer_primary_keys.py</code> (95% uniqueness threshold) before adding relationships.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 8: Verified Queries (VQRs) -->
+<!-- ================================================================== -->
+<div class="section" id="vqrs">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <h2>Verified Queries (VQRs) &mdash; 40-60% Accuracy Boost</h2>
+
+
+  </div>
+  <img class="section-img" src="slides/verified_queries_accuracy_boost_infographic_6cc744e1e9624cd2b65f5b772f4b1d9f.png" alt="Verified Queries" />
+
+  <div class="card">
+    <h3>What Are VQRs?</h3>
+    <p>Verified Query Results are <strong>question + SQL pairs</strong> that serve as few-shot examples for Cortex Analyst. When a user asks a question, the system finds the most similar VQR via <strong>cosine similarity</strong> and uses it as a template.</p>
+
+    <div class="stats">
+      <div class="stat-box"><span class="num">40-60%</span><span class="label">Accuracy improvement</span></div>
+      <div class="stat-box"><span class="num">#1</span><span class="label">Accuracy lever available</span></div>
+    </div>
+
+    <div class="info-box">
+      <strong>VQRs are excluded from the 32K token limit.</strong> You can add many VQRs without hitting size constraints.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>VQR Format &amp; Naming</h3>
+    <pre><span class="hl-key">verified_queries:</span>
+  - <span class="hl-key">name:</span> <span class="hl-str">vqr_0</span>                            <span class="hl-comment"># Sequential: vqr_0, vqr_1, ...</span>
+    <span class="hl-key">question:</span> <span class="hl-str">"What are the daily active users?"</span>  <span class="hl-comment"># Natural language</span>
+    <span class="hl-key">sql:</span> <span class="hl-str">|</span>                                      <span class="hl-comment"># Pipe syntax for multi-line</span>
+      SELECT
+        DATE_TRUNC('day', logged_at)::date AS ds,
+        COUNT(DISTINCT user_id) AS active_users
+      FROM analytics.logs.usage_logs
+      WHERE logged_at >= '2024-01-01'
+      GROUP BY ds
+      ORDER BY ds
+
+  - <span class="hl-key">name:</span> <span class="hl-str">vqr_1</span>
+    <span class="hl-key">question:</span> <span class="hl-str">"Top 10 customers by revenue?"</span>
+    <span class="hl-key">sql:</span> <span class="hl-str">|</span>
+      SELECT customer_name, SUM(revenue) AS total_revenue
+      FROM sales.transactions
+      GROUP BY customer_name
+      ORDER BY total_revenue DESC
+      LIMIT 10</pre>
+  </div>
+
+  <div class="card">
+    <h3>VQR Best Practices</h3>
+    <div class="do-dont">
+      <div class="do-card">
+        <ul>
+          <li>Use sequential naming: <code>vqr_0</code>, <code>vqr_1</code>, ...</li>
+          <li>Use pipe syntax <code>|</code> for multi-line SQL</li>
+          <li>Write natural language questions</li>
+          <li>Reserve for complex/ambiguous cases</li>
+          <li>Include complete, valid SQL</li>
+          <li>Use physical table references in SQL</li>
+        </ul>
+      </div>
+      <div class="dont-card">
+        <ul>
+          <li>Duplicate similar questions</li>
+          <li>Use inline SQL (escaping issues)</li>
+          <li>Write SQL that references logical table names</li>
+          <li>Add VQRs for trivially simple queries</li>
+          <li>Include VQRs with broken SQL</li>
+          <li>Skip testing VQRs before deployment</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>Get AI-generated VQR suggestions:</strong> Use the <code>semantic-view</code> skill's VQR Suggestions workflow. It runs both <code>ca_requests_based</code> and <code>query_history_based</code> modes in parallel.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 9: Custom Instructions -->
+<!-- ================================================================== -->
+<div class="section" id="instructions">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <h2>Custom Instructions &mdash; Last Resort</h2>
+
+  </div>
+  <img class="section-img" src="slides/custom_instructions_staircase_infographic_06cbe87e79cf4607bf07a2da513bf71a.png" alt="Custom Instructions" />
+
+  <div class="card">
+    <h3>When to Use Custom Instructions</h3>
+    <p>Custom instructions are <strong>natural language guidance for the LLM</strong>. Only use them after trying all other optimization levers:</p>
+    <div class="flow">
+      <div class="flow-step">Descriptions</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Metrics</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Relationships</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Filters</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">Custom Instructions</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Two Types</h3>
+    <div class="grid-2">
+      <div>
+        <h4><span class="pill pill-computed">Recommended</span> module_custom_instructions</h4>
+        <p>Targeted guidance for specific pipeline components.</p>
+        <pre><span class="hl-key">module_custom_instructions:</span>
+  <span class="hl-key">sql_generation:</span> <span class="hl-str">|</span>
+    Use table aliases for readability.
+    For fiscal quarters, add 11 months
+    before extracting quarter.
+  <span class="hl-key">question_categorization:</span> <span class="hl-str">|</span>
+    Treat trend questions as
+    UNAMBIGUOUS_SQL.</pre>
+      </div>
+      <div>
+        <h4><span class="pill pill-deprecated">Legacy</span> custom_instructions</h4>
+        <p>General instructions for SQL generation.</p>
+        <pre><span class="hl-key">custom_instructions:</span> <span class="hl-str">|-</span>
+  Unless explicitly asked for
+  historical analysis, ALWAYS filter
+  for snapshot_flag = 'Current'.
+
+  "Biggest X" means frequency
+  (COUNT), not value (SUM).</pre>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>If starting fresh, prefer <code>module_custom_instructions</code>.</strong> If the SV already has <code>custom_instructions</code>, keep using that pattern for consistency.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Writing Good Instructions</h3>
+    <div class="do-dont">
+      <div class="do-card">
+        <strong>Generalized (Good)</strong>
+        <pre><span class="hl-str">"Biggest [dimension]" means most
+frequent:
+- GROUP BY dimension
+- COUNT(DISTINCT primary_key)
+- Filter out NULLs</span></pre>
+        <p>Applies to any "biggest X" question.</p>
+      </div>
+      <div class="dont-card">
+        <strong>Overfitting (Bad)</strong>
+        <pre><span class="hl-str">For "Who are biggest partners?",
+use COUNT(DISTINCT id)
+GROUP BY partner.</span></pre>
+        <p>Only works for one exact question.</p>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      <strong>Maximum ~10 effective instructions.</strong> Beyond that, instructions start conflicting or getting ignored. Keep them focused and non-redundant.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 10: Audit & Quality Assurance -->
+<!-- ================================================================== -->
+<div class="section" id="audit">
+  <div class="section-header">
+    <div class="section-num">11</div>
+    <h2>Audit &amp; Quality Assurance</h2>
+
+  </div>
+  <img class="section-img" src="slides/audit_quality_assurance_dashboard_312ef609c2d84af483bcde3167b8734e.png" alt="Audit and Quality Assurance" />
+
+  <div class="card">
+    <h3>Three Audit Types</h3>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div style="background: #EBF8FF; padding: 16px; border-radius: 8px; border: 1px solid #BEE3F8;">
+        <h4 style="color: var(--sf-blue-dark);">VQR Testing</h4>
+        <p style="font-size: 13px;">Test each VQR without hints. Identifies which queries fail to measure completeness.</p>
+      </div>
+      <div style="background: #F0FFF4; padding: 16px; border-radius: 8px; border: 1px solid #C6F6D5;">
+        <h4 style="color: #276749;">Best Practices</h4>
+        <p style="font-size: 13px;">Documentation, naming, metadata, type safety, inconsistencies, duplicates, missing relationships.</p>
+      </div>
+      <div style="background: #F3E8FF; padding: 16px; border-radius: 8px; border: 1px solid #E9D8FD;">
+        <h4 style="color: #553C9A;">Custom Criteria</h4>
+        <p style="font-size: 13px;">User-defined validation rules for domain-specific requirements.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Best Practices Checks</h3>
+    <table>
+      <tr><th>Check Category</th><th>What It Verifies</th><th>Severity</th></tr>
+      <tr><td>Documentation</td><td>All tables and columns have descriptions; quality/clarity</td><td><span class="sev sev-high">HIGH</span></td></tr>
+      <tr><td>Naming</td><td>No special characters; consistent conventions</td><td><span class="sev sev-medium">MEDIUM</span></td></tr>
+      <tr><td>Metadata</td><td>Data types defined; synonyms used appropriately</td><td><span class="sev sev-medium">MEDIUM</span></td></tr>
+      <tr><td>Type Safety</td><td>Correct dimension vs fact classification; time dimension types</td><td><span class="sev sev-high">HIGH</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Inconsistency Detection</h3>
+    <table>
+      <tr><th>Type</th><th>Example</th><th>Severity</th></tr>
+      <tr>
+        <td>Conflicting descriptions</td>
+        <td><code>order_date</code> described differently across tables</td>
+        <td><span class="sev sev-medium">MEDIUM</span></td>
+      </tr>
+      <tr>
+        <td>Data type mismatch</td>
+        <td><code>customer_id</code> is NUMBER in one table, VARCHAR in another</td>
+        <td><span class="sev sev-critical">CRITICAL</span></td>
+      </tr>
+      <tr>
+        <td>Orphaned relationships</td>
+        <td>Relationship references non-existent table or column</td>
+        <td><span class="sev sev-critical">CRITICAL</span></td>
+      </tr>
+      <tr>
+        <td>Circular dependencies</td>
+        <td>Table A &rarr; B &rarr; C &rarr; A</td>
+        <td><span class="sev sev-high">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>Contradictory filters</td>
+        <td>Filter requires both <code>status = 'active'</code> AND <code>status = 'inactive'</code></td>
+        <td><span class="sev sev-critical">CRITICAL</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Duplicate Detection</h3>
+    <p>Identifies when custom instructions redundantly repeat information already in model elements:</p>
+    <table>
+      <tr><th>Duplicate Type</th><th>Match Level</th><th>Resolution</th></tr>
+      <tr><td>Exact duplicate</td><td>100%</td><td>Remove from instructions</td></tr>
+      <tr><td>High similarity</td><td>&gt;85%</td><td>Remove from instructions</td></tr>
+      <tr><td>Partial overlap</td><td>50-85%</td><td>Review and consolidate</td></tr>
+    </table>
+    <div class="info-box">
+      <strong>Keep information in its natural location:</strong> Descriptions in descriptions, filter logic in filters, metric logic in metrics. Custom instructions should only contain unique guidance not already in the model.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Missing Relationships Thresholds</h3>
+    <table>
+      <tr><th>Tables in SV</th><th>Minimum Expected Relationships</th><th>Flag If</th></tr>
+      <tr><td>2-3</td><td>1</td><td>0 relationships</td></tr>
+      <tr><td>4-6</td><td>2</td><td>1 or fewer</td></tr>
+      <tr><td>7+</td><td>3</td><td>2 or fewer</td></tr>
+    </table>
+    <p style="margin-top:8px; font-size:13px; color:var(--text-muted);">Only flagged when multiple tables share FK-like columns or dimension tables have no relationships.</p>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 11: Debug Workflow -->
+<!-- ================================================================== -->
+<div class="section" id="debug">
+  <div class="section-header">
+    <div class="section-num">12</div>
+    <h2>Debug Workflow &mdash; Fixing SQL Generation Issues</h2>
+
+  </div>
+  <img class="section-img" src="slides/debug_workflow_sql_issues_ae8cdfdd4e5147e78ef4acb47d7ed9a0.png" alt="Debug Workflow" />
+
+  <div class="card">
+    <h3>Three-Step Debug Process</h3>
+    <div class="flow">
+      <div class="flow-step">1. Diagnosis</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">2. Root Cause Analysis</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">3. Apply Optimizations</div>
+    </div>
+
+    <h4>Step 1: Diagnosis</h4>
+    <ul>
+      <li>Get the problematic natural language question from the user</li>
+      <li>Generate SQL using Cortex Analyst with the current semantic view</li>
+      <li>Execute the SQL and present results</li>
+    </ul>
+
+    <h4>Step 2: Root Cause Analysis</h4>
+    <ul>
+      <li>Compare generated SQL against expected output</li>
+      <li>Identify gaps in the semantic model</li>
+      <li>Present findings and recommended fixes</li>
+      <li><strong>Wait for user approval before applying changes</strong></li>
+    </ul>
+
+    <h4>Step 3: Apply Optimizations</h4>
+    <ul>
+      <li>Apply approved fixes using the optimization priority order</li>
+      <li>Validate with <code>reflect_semantic_model</code></li>
+      <li>Re-test the problematic question</li>
+      <li><strong>Exact match required</strong> &mdash; no "close enough"</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Issue-to-Gap Mapping</h3>
+    <table>
+      <tr><th>SQL Issue</th><th>Likely Semantic Model Gap</th><th>Fix Type</th></tr>
+      <tr>
+        <td>Missing or wrong column</td>
+        <td>Dimension/fact not properly described or missing synonyms</td>
+        <td><span class="pill pill-enhance">Enhance</span></td>
+      </tr>
+      <tr>
+        <td>Wrong aggregation</td>
+        <td>Missing metric definition or unclear fact descriptions</td>
+        <td><span class="pill pill-computed">Add Metric</span></td>
+      </tr>
+      <tr>
+        <td>Missing JOIN</td>
+        <td>Missing relationship between tables</td>
+        <td><span class="pill pill-computed">Add Relationship</span></td>
+      </tr>
+      <tr>
+        <td>Incorrect filter</td>
+        <td>Missing named filter or unclear dimension values</td>
+        <td><span class="pill pill-computed">Add Filter</span></td>
+      </tr>
+      <tr>
+        <td>Wrong business logic</td>
+        <td>Complex rules not expressible via model elements</td>
+        <td><span class="pill pill-computed">Custom Instruction</span></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 12: Improvement & Optimization Loop -->
+<!-- ================================================================== -->
+<div class="section" id="improve">
+  <div class="section-header">
+    <div class="section-num">13</div>
+    <h2>Improvement &amp; Optimization Loop</h2>
+
+  </div>
+  <img class="section-img" src="slides/improvement_optimization_loop_infographic_273a45a8e82540b880567ad4b9ebb529.png" alt="Improvement and Optimization Loop" />
+
+  <div class="card">
+    <h3>Three Improvement Approaches</h3>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div style="background: #EBF8FF; padding: 16px; border-radius: 8px; border: 1px solid #BEE3F8;">
+        <h4 style="color: var(--sf-blue-dark);">VQR Suggestions</h4>
+        <p style="font-size: 13px;">AI-generated verified query suggestions based on usage patterns. Modes: <code>ca_requests_based</code> or <code>query_history_based</code>.</p>
+      </div>
+      <div style="background: #F0FFF4; padding: 16px; border-radius: 8px; border: 1px solid #C6F6D5;">
+        <h4 style="color: #276749;">Agentic Optimization</h4>
+        <p style="font-size: 13px;">Automated AI analysis. Runs async (minutes). Suggests VQRs, descriptions, and structural changes.</p>
+      </div>
+      <div style="background: #F3E8FF; padding: 16px; border-radius: 8px; border: 1px solid #E9D8FD;">
+        <h4 style="color: #553C9A;">Manual Evaluation</h4>
+        <p style="font-size: 13px;">Test existing VQRs, identify failures, fix iteratively with the debug workflow.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Agentic Optimization Workflow</h3>
+    <div class="flow">
+      <div class="flow-step">Check Existing</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">Create Optimization</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Poll Status</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Review Results</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Apply Changes</div>
+    </div>
+
+    <details>
+      <summary>SQL Commands for Agentic Optimization</summary>
+      <pre><span class="hl-comment">-- Start optimization</span>
+<span class="hl-kw">CALL</span> SYSTEM$CORTEX_ANALYST_CREATE_AGENTIC_OPTIMIZATION(<span class="hl-str">'{
+  "semantic_model": {
+    "semantic_view": "DB.SCHEMA.VIEW_NAME"
+  },
+  "warehouse": "MY_WH",
+  "experimental": "{}"
+}'</span>);
+
+<span class="hl-comment">-- Check status</span>
+<span class="hl-kw">CALL</span> SYSTEM$CORTEX_ANALYST_GET_AGENTIC_OPTIMIZATION(<span class="hl-str">'&lt;optimization_name&gt;'</span>);
+
+<span class="hl-comment">-- List all optimizations</span>
+<span class="hl-kw">CALL</span> SYSTEM$CORTEX_ANALYST_LIST_AGENTIC_OPTIMIZATIONS(<span class="hl-str">'{
+  "semantic_model": {
+    "semantic_view": "DB.SCHEMA.VIEW_NAME"
+  },
+  "experimental": "{}"
+}'</span>);
+
+<span class="hl-comment">-- Cancel if needed</span>
+<span class="hl-kw">CALL</span> SYSTEM$CORTEX_ANALYST_CANCEL_AGENTIC_OPTIMIZATION(<span class="hl-str">'&lt;optimization_name&gt;'</span>);</pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3>Iterative Improvement Cycle</h3>
+    <div class="info-box">
+      <strong>Small incremental changes are better than bulk updates.</strong> After each change: validate &rarr; test &rarr; verify. This makes it easy to identify which change caused a regression.
+    </div>
+    <div class="flow">
+      <div class="flow-step">Audit</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Identify Issues</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step highlight">Apply Fix</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Validate</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Test</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step" style="background: var(--sf-teal);">Deploy</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Re-Deployment After Changes</h3>
+    <p>If the semantic view was exported from a database object, re-deploy after making changes:</p>
+    <pre><span class="hl-comment">-- Export current definition</span>
+<span class="hl-kw">SELECT</span> SYSTEM$READ_YAML_FROM_SEMANTIC_VIEW(<span class="hl-str">'DB.SCHEMA.VIEW_NAME'</span>);
+
+<span class="hl-comment">-- After editing locally, re-deploy</span>
+<span class="hl-kw">CALL</span> SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML(
+  <span class="hl-str">'DB.SCHEMA'</span>,
+  <span class="hl-str">'&lt;updated_yaml_content&gt;'</span>,
+  <span class="hl-kw">FALSE</span>
+);</pre>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 13: Common Pitfalls & Anti-Patterns -->
+<!-- ================================================================== -->
+<div class="section" id="pitfalls">
+  <div class="section-header">
+    <div class="section-num">14</div>
+    <h2>Common Pitfalls &amp; Anti-Patterns</h2>
+
+
+  </div>
+  <img class="section-img" src="slides/common_pitfalls_maturity_model_22f113baabdb40a9ac823852558d34cb.png" alt="Common Pitfalls and Anti-Patterns" />
+
+  <div class="card">
+    <h3>Top 10 Mistakes to Avoid</h3>
+    <table>
+      <tr><th>#</th><th>Pitfall</th><th>Impact</th><th>Fix</th></tr>
+      <tr>
+        <td>1</td>
+        <td><strong>Too many columns</strong> (&gt;100)</td>
+        <td>Performance degrades, token limit exceeded</td>
+        <td>Split by domain, keep 50-100 per SV</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>No VQRs</strong></td>
+        <td>Missing 40-60% accuracy gain</td>
+        <td>Add VQRs for complex/ambiguous questions</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Missing relationships</strong> in multi-table SVs</td>
+        <td>JOINs not generated, data incomplete</td>
+        <td>Add relationships with verified PKs</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Duplicate instructions</strong></td>
+        <td>Confusion, conflicting guidance, wasted tokens</td>
+        <td>Keep info in its natural location; audit for dupes</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Deprecated fields</strong> (<code>measures</code>, <code>default_aggregation</code>)</td>
+        <td>Validation errors or silent failures</td>
+        <td>Use <code>facts</code> and <code>metrics</code> instead</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>Minimal descriptions</strong></td>
+        <td>LLM can't understand column purpose</td>
+        <td>Write rich descriptions with business context</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><strong>Custom instructions as first resort</strong></td>
+        <td>Brittle, hard to maintain, limited to ~10</td>
+        <td>Follow priority order: descriptions &rarr; metrics &rarr; filters &rarr; relationships &rarr; instructions</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><strong>NOT IN conditions in generated SQL</strong></td>
+        <td>Unexpected NULL handling</td>
+        <td>Use explicit filters or custom instructions to guide SQL patterns</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><strong>No testing before deployment</strong></td>
+        <td>Broken queries in production</td>
+        <td>Always validate + run VQR testing audit</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td><strong>Timestamp filtering bugs</strong></td>
+        <td>Wrong date ranges in results</td>
+        <td>Use explicit time_dimensions; add date filters with DATEADD</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>The Semantic View Maturity Model</h3>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div style="background: #FEE2E2; padding: 16px; border-radius: 8px;">
+        <h4>Phase 1: Basic</h4>
+        <ul style="font-size: 13px;">
+          <li>IT-driven creation</li>
+          <li>Minimal descriptions</li>
+          <li>No VQRs</li>
+          <li>Manual deployment</li>
+        </ul>
+      </div>
+      <div style="background: #FEFCBF; padding: 16px; border-radius: 8px;">
+        <h4>Phase 2: Optimized</h4>
+        <ul style="font-size: 13px;">
+          <li>Rich metadata</li>
+          <li>VQRs from usage patterns</li>
+          <li>Regular audits</li>
+          <li>Git-based version control</li>
+        </ul>
+      </div>
+      <div style="background: #D1FAE5; padding: 16px; border-radius: 8px;">
+        <h4>Phase 3: Business-Owned</h4>
+        <ul style="font-size: 13px;">
+          <li>Business teams maintain SVs</li>
+          <li>CI/CD pipelines</li>
+          <li>Automated testing</li>
+          <li>Agentic optimization</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quick Reference Checklist</h3>
+    <div style="columns: 2; column-gap: 24px; font-size: 13.5px;">
+      <p><strong style="color: var(--green);">&#10003;</strong> Every table has a description</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Every column has a rich description</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Using <code>facts</code> not <code>measures</code></p>
+      <p><strong style="color: var(--green);">&#10003;</strong> VQRs added for complex queries</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Relationships defined between tables</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Primary keys verified before relationships</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Fewer than 100 columns per SV</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Under 32K tokens (excl. VQRs)</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Metrics have <code>access_modifier</code></p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Filters nested under tables</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> No deprecated fields used</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> Validated with <code>reflect_semantic_model</code></p>
+      <p><strong style="color: var(--green);">&#10003;</strong> VQR testing audit passed</p>
+      <p><strong style="color: var(--green);">&#10003;</strong> No duplicate instructions</p>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align: center; padding: 40px 0 20px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px;">
+  Snowflake Semantic View Best Practices &mdash; Built from Cortex Code CLI bundled skills &amp; internal research<br>
+  Sources: Cortex Code CLI bundled <code>semantic-view</code> skill
+</div>
+
+</main>
+</div>
+
+<!-- Sidebar active-link tracking -->
+<script>
+(function() {
+  const links = document.querySelectorAll('nav a');
+  const sections = [];
+  links.forEach(a => {
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, a });
+  });
+
+  function update() {
+    let current = sections[0];
+    const scrollY = window.scrollY + 120;
+    for (const s of sections) {
+      if (s.el.offsetTop <= scrollY) current = s;
+    }
+    links.forEach(a => a.classList.remove('active'));
+    if (current) current.a.classList.add('active');
+  }
+
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+
+</body>
+</html>
