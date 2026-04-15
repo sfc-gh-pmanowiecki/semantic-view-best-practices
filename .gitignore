@@ -28,3 +28,7 @@ Temporary Items
 *.swp
 *.swo
 *~
+
+# Project-specific exclusions
+semantic_view_playground.html
+skill_comparison.md
